@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IPPT Tracker — Score, History & AI Insights</title>
+<meta name="description" content="Personalised Singapore IPPT (male) score calculator with attempt history, trend tracking and AI insights." />
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --border:#2a313a;
+    --txt:#e6edf3; --muted:#8b949e; --dim:#565f6a;
+    --green:#2ea043; --green-d:#1f6f33; --gold:#e3b341; --silver:#c9d1d9;
+    --red:#f85149; --blue:#58a6ff; --accent:#2ea043;
+    --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 80% -10%, #15201a 0%, transparent 60%),var(--bg);
+    color:var(--txt); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--green),var(--green-d));
+    display:grid;place-items:center;font-weight:800;color:#06120b;font-size:15px;box-shadow:0 0 0 1px #0006}
+  .brand h1{font-size:18px;margin:0;letter-spacing:.3px}
+  .brand .sub{font-size:12px;color:var(--muted)}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--border);border-radius:9px;
+    padding:8px 13px;font-size:13px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{border-color:#3d4651;background:#222b35}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#06120b;font-weight:600}
+  .btn.primary:hover{background:#36b84f}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--red);border-color:#5a2729}
+  .btn.danger:hover{background:#2a1416}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .grid{display:grid;gap:14px}
+  .dashboard{grid-template-columns: 320px 1fr; align-items:start}
+  @media(max-width:820px){ .dashboard{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 12px;font-weight:600}
+
+  /* gauge */
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .gauge{position:relative;width:190px;height:190px}
+  .gauge svg{transform:rotate(-90deg)}
+  .gauge .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+  .gauge .score{font-size:48px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .gauge .of{font-size:12px;color:var(--muted);margin-top:2px}
+  .award-badge{font-size:14px;font-weight:700;padding:6px 14px;border-radius:999px;border:1px solid var(--border)}
+  .award-Gold{color:#06120b;background:var(--gold);border-color:var(--gold)}
+  .award-Silver{color:#06120b;background:var(--silver);border-color:var(--silver)}
+  .award-Pass{color:var(--txt);background:var(--panel2)}
+  .award-Pass.with-incentive{color:var(--green);border-color:var(--green-d)}
+  .award-Fail{color:var(--red);background:#241416;border-color:#5a2729}
+  .meta-row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);width:100%;margin-top:4px}
+  .meta-row b{color:var(--txt);font-weight:600}
+  .countdown{font-size:13px;color:var(--muted);text-align:center;margin-top:6px}
+  .countdown b{color:var(--gold);font-size:16px}
+
+  /* stations */
+  .stations{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:560px){ .stations{grid-template-columns:1fr} }
+  .station{background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:12px}
+  .station .name{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .station .val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0}
+  .station .pts{font-size:12px;color:var(--muted)}
+  .station .pts b{color:var(--green);font-size:14px}
+  .station .delta{font-size:11px;margin-top:4px;min-height:14px}
+  .delta.up{color:var(--green)} .delta.down{color:var(--red)} .delta.flat{color:var(--dim)}
+  .station .next{font-size:11px;color:var(--dim);margin-top:3px}
+  .bar{height:5px;background:#0c1014;border-radius:4px;overflow:hidden;margin-top:7px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--green-d),var(--green));border-radius:4px}
+
+  /* calc inputs */
+  .calc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  @media(max-width:560px){ .calc{grid-template-columns:1fr} }
+  .field label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+  .field input{width:100%;background:#0c1014;border:1px solid var(--border);color:var(--txt);
+    border-radius:9px;padding:10px 11px;font-size:16px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .field input:focus{outline:none;border-color:var(--green)}
+  .hint{font-size:11px;color:var(--dim);margin-top:4px}
+
+  /* insights */
+  .insight{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .insight:last-child{border-bottom:none}
+  .insight .ic{flex:0 0 26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:14px;background:var(--panel2)}
+  .insight .ic.warn{background:#3a2a10;color:var(--gold)}
+  .insight .ic.good{background:#10291a;color:var(--green)}
+  .insight .ic.info{background:#0e2236;color:var(--blue)}
+  .insight .ic.bad{background:#2a1416;color:var(--red)}
+  .insight p{margin:0;font-size:13.5px}
+  .insight p b{color:var(--txt)}
+  .insight .tag{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+
+  /* trend */
+  .trend-box{position:relative}
+  .trend svg{width:100%;height:90px;display:block}
+  .trend .empty{color:var(--dim);font-size:13px;text-align:center;padding:24px 0}
+
+  /* history */
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{display:grid;grid-template-columns: 92px 1fr auto auto;gap:10px;align-items:center;
+    padding:9px 4px;border-bottom:1px solid var(--border);font-size:13.5px}
+  .hist li:last-child{border-bottom:none}
+  .hist .date{color:var(--muted);font-family:var(--mono);font-size:12px}
+  .hist .split{color:var(--muted);font-family:var(--mono);font-size:12px}
+  .hist .sc{font-weight:700;font-variant-numeric:tabular-nums}
+  .hist .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:6px}
+  .hist .del:hover{color:var(--red);background:#2a1416}
+  @media(max-width:560px){ .hist li{grid-template-columns:1fr auto auto} .hist .split{display:none} }
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:#000a;backdrop-filter:blur(3px);display:none;place-items:center;z-index:50;padding:16px}
+  .modal-bg.show{display:grid}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;
+    max-height:88vh;overflow:auto;padding:20px}
+  .modal h2{margin:0 0 4px;font-size:18px}
+  .modal .desc{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .modal .field{margin-bottom:13px}
+  .modal select{width:100%;background:#0c1014;border:1px solid var(--border);color:var(--txt);border-radius:9px;padding:10px 11px;font-size:14px}
+  .modal .row{display:flex;gap:10px}
+  .modal .row .field{flex:1}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);
+    border:1px solid var(--border);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:13px;
+    z-index:80;opacity:0;transition:.25s;pointer-events:none;box-shadow:0 8px 30px #0008}
+  .toast.show{opacity:1}
+  .toast.ok{border-color:var(--green-d)} .toast.err{border-color:#5a2729;color:#ffb4b2}
+  .sec{margin-top:18px}
+  .muted{color:var(--muted);font-size:12.5px}
+  code{background:#0c1014;padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:12px;color:var(--blue)}
+  .pillrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">IP</div>
+      <div>
+        <h1>IPPT Tracker</h1>
+        <div class="sub">Singapore SAF · male scoring · personalised insights</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btnProfile">⚙ Profile</button>
+      <button class="btn" id="btnSync">⬆ Sync to GitHub</button>
+      <button class="btn ghost" id="btnSettings">⛓ GitHub settings</button>
+    </div>
+  </header>
+
+  <div class="grid dashboard">
+    <!-- LEFT: gauge -->
+    <div class="card">
+      <h2>Current Score</h2>
+      <div class="gauge-wrap">
+        <div class="gauge">
+          <svg width="190" height="190" viewBox="0 0 190 190">
+            <circle cx="95" cy="95" r="82" fill="none" stroke="#0c1014" stroke-width="14"/>
+            <circle id="gaugeArc" cx="95" cy="95" r="82" fill="none" stroke="url(#gg)" stroke-width="14"
+              stroke-linecap="round" stroke-dasharray="515" stroke-dashoffset="515"/>
+            <defs>
+              <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#2ea043"/><stop offset="100%" stop-color="#e3b341"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="center">
+            <div>
+              <div class="score" id="totalScore">—</div>
+              <div class="of">/ 100</div>
+            </div>
+          </div>
+        </div>
+        <div class="award-badge award-Pass" id="awardBadge">—</div>
+        <div class="meta-row"><span>Age group</span><b id="ageGroupLbl">—</b></div>
+        <div class="meta-row"><span>Target</span><b id="targetLbl">—</b></div>
+        <div class="countdown" id="countdown"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: stations + calc + insights -->
+    <div class="grid">
+      <div class="card">
+        <h2>Station Breakdown</h2>
+        <div class="stations" id="stations">
+          <div class="station"><div class="name">2.4km Run</div><div class="val" id="runVal">—</div>
+            <div class="pts"><b id="runPts">0</b> / 50 pts</div><div class="bar"><i id="runBar"></i></div>
+            <div class="delta flat" id="runDelta"></div><div class="next" id="runNext"></div></div>
+          <div class="station"><div class="name">Sit-ups</div><div class="val" id="sitVal">—</div>
+            <div class="pts"><b id="sitPts">0</b> / 25 pts</div><div class="bar"><i id="sitBar"></i></div>
+            <div class="delta flat" id="sitDelta"></div><div class="next" id="sitNext"></div></div>
+          <div class="station"><div class="name">Push-ups</div><div class="val" id="pushVal">—</div>
+            <div class="pts"><b id="pushPts">0</b> / 25 pts</div><div class="bar"><i id="pushBar"></i></div>
+            <div class="delta flat" id="pushDelta"></div><div class="next" id="pushNext"></div></div>
+        </div>
+
+        <div class="calc">
+          <div class="field">
+            <label>2.4km time (mm:ss)</label>
+            <input id="inRun" inputmode="numeric" placeholder="11:20" />
+            <div class="hint">e.g. 11:20</div>
+          </div>
+          <div class="field">
+            <label>Sit-ups (reps)</label>
+            <input id="inSit" type="number" min="0" max="60" placeholder="45" />
+            <div class="hint">1 min, max 60</div>
+          </div>
+          <div class="field">
+            <label>Push-ups (reps)</label>
+            <input id="inPush" type="number" min="0" max="60" placeholder="40" />
+            <div class="hint">1 min, max 60</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn primary" id="btnLog">＋ Log this attempt</button>
+          <span class="muted" id="logHint">Enter your numbers above — score updates live.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>AI Insights & Recommendations</h2>
+        <div id="insights"><div class="muted">Enter your results to get personalised insights.</div></div>
+      </div>
+
+      <div class="card trend-box">
+        <h2>Score Trend</h2>
+        <div class="trend" id="trend"><div class="empty">No attempts logged yet.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Attempt History</h2>
+        <ul class="hist" id="hist"><li class="muted" style="border:none">No attempts yet. Log one to start tracking.</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted sec">Scoring tables adapted from <a href="https://github.com/ninest/ippt-utils" target="_blank" rel="noopener">ninest/ippt-utils</a> (MIT). Unofficial tool — always verify against <a href="https://www.ns.sg/" target="_blank" rel="noopener">ns.sg</a>. Data stays in your browser + your own GitHub repo.</p>
+</div>
+
+<!-- Profile modal -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal">
+    <h2>Your Profile</h2>
+    <p class="desc">Used to compute your age group and personalise targets.</p>
+    <div class="field"><label>Name (optional)</label><input id="pfName" type="text" placeholder="Ah Tan"/></div>
+    <div class="row">
+      <div class="field"><label>Age</label><input id="pfAge" type="number" min="16" max="70" placeholder="27"/></div>
+      <div class="field"><label>Next IPPT date</label><input id="pfDate" type="date"/></div>
+    </div>
+    <div class="field"><label>Target award</label>
+      <select id="pfTarget">
+        <option value="51">Pass (≥51)</option>
+        <option value="61">Pass with Incentive (≥61)</option>
+        <option value="75">Silver (≥75)</option>
+        <option value="85">Gold (≥85)</option>
+        <option value="90">Gold — Commando/Diver/Guards (≥90)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('profileModal')">Cancel</button>
+      <button class="btn primary" id="pfSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h2>GitHub Sync</h2>
+    <p class="desc">Your attempt history is saved as <code>history.json</code> in your repo. The app commits it via the GitHub API using your token.</p>
+    <div class="field"><label>GitHub username / owner</label><input id="setOwner" type="text" placeholder="ncheewee"/></div>
+    <div class="field"><label>Repository</label><input id="setRepo" type="text" placeholder="ippt-tracker"/></div>
+    <div class="row">
+      <div class="field"><label>Branch</label><input id="setBranch" type="text" placeholder="main"/></div>
+      <div class="field"><label>File path</label><input id="setPath" type="text" placeholder="history.json"/></div>
+    </div>
+    <div class="field"><label>Personal Access Token <span class="muted">(repo scope)</span></label>
+      <input id="setToken" type="password" placeholder="ghp_..."/>
+      <div class="hint">⚠ Stored only in this browser's localStorage and sent only to api.github.com. Use a fine-grained token with Contents read+write on this repo.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('settingsModal')">Close</button>
+      <button class="btn" id="setLoad">⬇ Load from GitHub</button>
+      <button class="btn primary" id="setSave">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== SCORING DATA (SAF male, adapted from ninest/ippt-utils, MIT) ===================== */
+const PUSHUP_TABLE = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25],[0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25],[0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,20,21,21,21,21,22,22,22,23,23,23,23,24,24,24,25,25,25],[0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25],[0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,25,25,25,25,25],[0,0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,25,25,25,25,25,25],[0,0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,25,25,25,25,25,25,25],[0,0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,25,25,25,25,25,25,25,25],[0,0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,24,25,25,25,25,25,25,25,25,25,25],[0,0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,21,22,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,21,22,22,22,22,23,23,23,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,22,22,22,23,23,23,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,1,2,4,6,8,9,10,11,12,13,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,20,20,20,21,21,21,22,22,22,23,23,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25]];
+
+const SITUP_TABLE = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,13,14,14,15,16,17,18,18,19,19,20,20,20,20,21,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25],[0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,13,14,14,15,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25],[0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,13,14,14,15,16,17,18,18,19,19,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,24,25,25,25],[0,0,0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,13,14,14,15,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25],[0,0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,24,25,25,25,25,25],[0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25,25,25],[0,0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,24,25,25,25,25,25,25,25],[0,0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25,25,25,25,25],[0,0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,21,21,21,21,22,22,22,22,23,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25],[0,0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,20,21,21,21,21,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,21,21,21,21,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,20,21,21,21,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25],[0,1,2,3,4,5,6,6,7,7,8,9,10,11,12,13,14,14,15,16,16,17,18,18,19,19,20,20,20,21,21,21,22,22,22,23,23,23,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25]];
+
+const RUN_TABLE = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,46,48,49,50],[0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,46,48,49,50,50],[0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,46,48,49,50,50,50],[0,0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,41,42,43,44,45,46,48,49,50,50,50,50],[0,0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,41,42,43,44,45,46,48,49,50,50,50,50,50],[0,0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,48,49,50,50,50,50,50,50],[0,0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,48,49,50,50,50,50,50,50,50],[0,0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,23,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,48,49,50,50,50,50,50,50,50,50],[0,0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50],[0,0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50,50],[0,0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50,50,50],[0,0,0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50,50,50,50],[0,0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50,50,50,50,50],[0,1,2,4,6,8,10,12,14,16,18,20,22,24,25,26,27,28,29,30,31,32,33,34,35,35,35,36,36,37,37,38,38,39,39,40,40,41,42,43,44,45,46,47,48,49,50,50,50,50,50,50,50,50,50,50,50,50,50,50]];
+
+const RUN_TIMES = [1100,1090,1080,1070,1060,1050,1040,1030,1020,1010,1000,990,980,970,960,950,940,930,920,910,900,890,880,870,860,850,840,830,820,810,800,790,780,770,760,750,740,730,720,710,700,690,680,670,660,650,640,630,620,610,600,590,580,570,560,550,540,530,520,510];
+
+const AWARDS = [
+  {min:90, name:'Gold', sub:'Commando/Diver/Guards', cls:'award-Gold', cash:500},
+  {min:85, name:'Gold', cls:'award-Gold', cash:500},
+  {min:75, name:'Silver', cls:'award-Silver', cash:300},
+  {min:61, name:'Pass with Incentive', cls:'award-Pass with-incentive', cash:200},
+  {min:51, name:'Pass', cls:'award-Pass', cash:0},
+  {min:0,  name:'Fail', cls:'award-Fail', cash:0},
+];
+
+/* ===================== SCORING ENGINE ===================== */
+function getAgeGroup(age){
+  let g=1, a=age;
+  while(a>=22){ g++; a-=3; }
+  return Math.min(g,14);
+}
+function ageGroupLabel(g){
+  const ranges=['≤21','22–24','25–27','28–30','31–33','34–36','37–39','40–42','43–45','46–48','49–51','52–54','55–57','58+'];
+  return `Group ${g} · ${ranges[g-1]}`;
+}
+function staticScore(table, ageGroup, reps){
+  const list = table[Math.min(Math.max(ageGroup,1),14)-1];
+  if(reps>60) reps=60; if(reps<0) reps=0;
+  let score=0, next=0;
+  if(reps>0){ score = list[reps-1]||0; }
+  if(score>=25){ next=0; }
+  else if(reps>0){
+    for(let i=reps-1;i<list.length;i++){ if(list[i]===score) next++; else break; }
+  } else {
+    for(let i=0;i<list.length;i++){ if(list[i]===0) next++; else break; }
+  }
+  return [score,next];
+}
+function runScore(ageGroup, sec){
+  const list = RUN_TABLE[Math.min(Math.max(ageGroup,1),14)-1];
+  if(sec>RUN_TIMES[0]) sec=RUN_TIMES[0];
+  if(sec<RUN_TIMES[RUN_TIMES.length-1]) sec=RUN_TIMES[RUN_TIMES.length-1];
+  let pos=0;
+  for(let i=0;i<RUN_TIMES.length;i++){ if(RUN_TIMES[i]>=sec) pos=i; }
+  const score=list[pos]||0;
+  let next=0;
+  if(score<50){ for(let i=pos;i<list.length;i++){ if(list[i]===score) next++; else break; } next*=10; }
+  return [score,next];
+}
+function getAward(score){
+  for(const a of AWARDS){ if(score>=a.min) return a; }
+  return AWARDS[AWARDS.length-1];
+}
+function parseTime(str){
+  if(!str) return null;
+  str=String(str).trim();
+  let m=str.match(/^(\d+):([0-5]?\d)$/);
+  if(m) return (+m[1])*60+(+m[2]);
+  let n=parseInt(str,10);
+  if(!isNaN(n)) return n;
+  return null;
+}
+function fmtTime(sec){
+  if(sec==null||isNaN(sec)) return '—';
+  const m=Math.floor(sec/60), s=sec%60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function compute(runSec, sit, push, age){
+  if(age==null||isNaN(age)) age=25;
+  const ag=getAgeGroup(age);
+  const [rP,rN]=runScore(ag, runSec||0);
+  const [sP,sN]=staticScore(SITUP_TABLE, ag, sit||0);
+  const [pP,pN]=staticScore(PUSHUP_TABLE, ag, push||0);
+  const total=rP+sP+pP;
+  return { ageGroup:ag, run:{score:rP,next:rN,max:50}, sit:{score:sP,next:sN,max:25},
+           push:{score:pP,next:pN,max:25}, total, award:getAward(total) };
+}
+
+/* ===================== STATE / STORAGE ===================== */
+const LS={
+  profile:   'ippt.profile',
+  attempts:  'ippt.attempts',
+  settings:  'ippt.ghsettings',
+  draft:     'ippt.draft'
+};
+let profile = JSON.parse(localStorage.getItem(LS.profile)||'{}');
+let attempts = JSON.parse(localStorage.getItem(LS.attempts)||'[]');
+let settings = JSON.parse(localStorage.getItem(LS.settings)||'{}');
+function save(){ localStorage.setItem(LS.profile,JSON.stringify(profile)); localStorage.setItem(LS.attempts,JSON.stringify(attempts)); }
+
+/* ===================== RENDER ===================== */
+const $=id=>document.getElementById(id);
+let lastResult=null, lastInput=null;
+
+function readInputs(){
+  const run=parseTime($('inRun').value);
+  const sit=parseInt($('inSit').value,10);
+  const push=parseInt($('inPush').value,10);
+  return { run, sit:(isNaN(sit)?null:Math.max(0,sit)), push:(isNaN(push)?null:Math.max(0,push)) };
+}
+function recompute(){
+  const inp=readInputs();
+  lastInput=inp;
+  const age=profile.age||null;
+  const have = inp.run!=null && inp.sit!=null && inp.push!=null;
+  if(!have || age==null){ renderStations(null,null); renderGauge(null); renderInsights(null); return; }
+  const res=compute(inp.run, inp.sit, inp.push, age);
+  lastResult=res;
+  // draft persistence
+  localStorage.setItem(LS.draft, JSON.stringify(inp));
+  renderGauge(res);
+  renderStations(res, inp);
+  renderInsights(res);
+}
+function renderGauge(res){
+  if(!res){ $('totalScore').textContent='—'; $('gaugeArc').setAttribute('stroke-dashoffset',515);
+    $('awardBadge').textContent='Enter age in Profile'; $('awardBadge').className='award-badge award-Pass';
+    $('ageGroupLabel').textContent= profile.age? ageGroupLabel(getAgeGroup(profile.age)):'—'; $('targetLbl').textContent='—'; return; }
+  $('totalScore').textContent=res.total;
+  const C=2*Math.PI*82; const off=C*(1-res.total/100);
+  $('gaugeArc').setAttribute('stroke-dasharray',C);
+  $('gaugeArc').setAttribute('stroke-dashoffset',off);
+  const a=res.award; const b=$('awardBadge');
+  b.textContent=a.name + (a.sub?` · ${a.sub}`:'') + (a.cash?` · $${a.cash}`:'');
+  b.className='award-badge '+a.cls;
+  $('ageGroupLabel').textContent=ageGroupLabel(res.ageGroup);
+  const tgt=profile.target? AWARDS.find(x=>x.min==profile.target):null;
+  $('targetLbl').textContent= tgt? `${tgt.name} (≥${tgt.min})`:'—';
+  // countdown
+  if(profile.nextDate){ const d=new Date(profile.nextDate+'T00:00:00'); const now=new Date();
+    const days=Math.ceil((d-now)/86400000);
+    $('countdown').innerHTML = days>0 ? `Next IPPT in <b>${days}</b> days` : (days===0?`<b>Today</b> — IPPT day!`:`<span style="color:var(--red)">Overdue by ${-days}d</span>`);
+  } else { $('countdown').textContent=''; }
+}
+function deltaText(prev, cur, unit){
+  if(prev==null) return {cls:'flat',txt:''};
+  const d=cur-prev;
+  if(d===0) return {cls:'flat',txt:'no change'};
+  // for run, lower is better; cur/prev are scores (higher better)
+  return {cls: d>0?'up':'down', txt:`${d>0?'+':''}${d} pts vs last`};
+}
+function renderStations(res, inp){
+  const prev = attempts.length? attempts[attempts.length-1] : null;
+  const fill=(id, val)=>$(id).textContent=val;
+  if(!res){
+    fill('runVal', inp&&inp.run!=null?fmtTime(inp.run):'—'); fill('runPts','0'); $('runBar').style.width='0%'; $('runDelta').textContent='';$('runNext').textContent='';
+    fill('sitVal', inp&&inp.sit!=null?inp.sit:'—'); fill('sitPts','0'); $('sitBar').style.width='0%'; $('sitDelta').textContent='';$('sitNext').textContent='';
+    fill('pushVal', inp&&inp.push!=null?inp.push:'—'); fill('pushPts','0'); $('pushBar').style.width='0%'; $('pushDelta').textContent='';$('pushNext').textContent='';
+    return;
+  }
+  // run
+  fill('runVal', fmtTime(inp.run)); fill('runPts', res.run.score);
+  $('runBar').style.width=(res.run.score/res.run.max*100)+'%';
+  setDelta('runDelta', prev?prev.runScore:null, res.run.score);
+  $('runNext').innerHTML = res.run.next>0? `Shave <b>${res.run.next}s</b> → +1 pt`:'Maxed out 🎯';
+  // sit
+  fill('sitVal', inp.sit); fill('sitPts', res.sit.score);
+  $('sitBar').style.width=(res.sit.score/res.sit.max*100)+'%';
+  setDelta('sitDelta', prev?prev.sitScore:null, res.sit.score);
+  $('sitNext').innerHTML = res.sit.next>0? `+<b>${res.sit.next}</b> reps → +1 pt`:'Maxed out 🎯';
+  // push
+  fill('pushVal', inp.push); fill('pushPts', res.push.score);
+  $('pushBar').style.width=(res.push.score/res.push.max*100)+'%';
+  setDelta('pushDelta', prev?prev.pushScore:null, res.push.score);
+  $('pushNext').innerHTML = res.push.next>0? `+<b>${res.push.next}</b> reps → +1 pt`:'Maxed out 🎯';
+}
+function setDelta(id, prev, cur){
+  const el=$(id); const d=deltaText(prev,cur);
+  el.className='delta '+d.cls; el.textContent=d.txt;
+}
+
+/* ---- AI insights (rule-based) ---- */
+function renderInsights(res){
+  const box=$('insights');
+  if(!res){ box.innerHTML='<div class="muted">Enter your run time, sit-ups and push-ups (and set your age in Profile) to get personalised insights.</div>'; return; }
+  const out=[];
+  const tgt = profile.target? AWARDS.find(x=>x.min==profile.target) : null;
+  const prev = attempts.length? attempts[attempts.length-1] : null;
+
+  // 1. Overall status vs target
+  if(tgt){
+    if(res.total>=tgt.min){
+      out.push({ic:'good',e:'✓',t:`<b>On target.</b> You meet ${tgt.name} (≥${tgt.min}) with ${res.total} pts (${res.total-tgt.min} to spare).`});
+    } else {
+      const gap=tgt.min-res.total;
+      out.push({ic:'warn',e:'!',t:`<b>${gap} pt${gap>1?'s':''} to ${tgt.name}.</b> Currently ${res.total}/${tgt.min}. See the fastest path below.`});
+    }
+  }
+
+  // 2. Weakest station
+  const stations=[
+    {key:'run', name:'2.4km Run', s:res.run, unit:'shave seconds'},
+    {key:'sit', name:'Sit-ups', s:res.sit, unit:'add reps'},
+    {key:'push',name:'Push-ups', s:res.push,unit:'add reps'},
+  ];
+  const frac=st=>st.s.score/st.s.max;
+  stations.sort((a,b)=>frac(a)-frac(b));
+  const weak=stations[0];
+  if(weak.s.score<weak.s.max){
+    out.push({ic:'info',e:'↓',t:`<b>${weak.name}</b> is your weakest link (${weak.s.score}/${weak.s.max}). `+
+      (weak.s.next>0? (weak.key==='run'? `Shaving ${weak.s.next}s buys the next point fastest.` : `+${weak.s.next} reps for the next point.`):'')});
+  }
+
+  // 3. Fastest path to target (or to next award)
+  const nextAward = AWARDS.find(a=>a.min>res.total);
+  const goal = tgt && tgt.min>res.total ? tgt : nextAward;
+  if(goal && goal.min>res.total){
+    const path=pathToTarget(res, goal.min-res.total);
+    if(path.steps.length){
+      const parts=path.steps.map(s=>s.txt);
+      out.push({ic:'good',e:'🎯',t:`<b>Fastest path to ${goal.name}:</b> ${parts.join('  ·  ')} (+${path.points} pts → ${res.total+path.points}).`});
+    }
+  } else if(res.total>=85){
+    out.push({ic:'good',e:'★',t:`<b>Gold standard.</b> Push for ${res.total<90?'90':'the max'} — every point is marginal from here.`});
+  }
+
+  // 4. Trend vs last attempt
+  if(prev){
+    const d=res.total-prev.total;
+    if(d>0) out.push({ic:'good',e:'↑',t:`<b>Up ${d} pts</b> since ${fmtDate(prev.date)}. `+trendBreakdown(prev,res)});
+    else if(d<0) out.push({ic:'bad',e:'↓',t:`<b>Down ${-d} pts</b> since ${fmtDate(prev.date)}. `+trendBreakdown(prev,res)});
+    else out.push({ic:'info',e:'=',t:`<b>Holding steady</b> at ${res.total} since ${fmtDate(prev.date)}.`});
+  } else {
+    out.push({ic:'info',e:'i',t:`First logged attempt — log future IPPTs to unlock trend analysis.`});
+  }
+
+  // 5. Station-specific coaching
+  out.push(...coaching(res, weak));
+
+  box.innerHTML = out.map(o=>`<div class="insight"><div class="ic ${o.ic}">${o.e}</div><div><p>${o.t}</p></div></div>`).join('');
+}
+function pathToTarget(res, gap){
+  // greedy: pick station needing least effort (reps or sec) per point, until gap closed
+  const work=[
+    {key:'run', name:'Run', unit:'s', perPt:res.run.next, head:res.run.max-res.run.score, verb:'shave'},
+    {key:'sit', name:'Sit-ups', unit:' reps', perPt:res.sit.next, head:res.sit.max-res.sit.score, verb:'+'},
+    {key:'push',name:'Push-ups', unit:' reps', perPt:res.push.next, head:res.push.max-res.push.score, verb:'+'},
+  ].filter(w=>w.head>0 && w.perPt>0);
+  let remaining=gap, steps={run:{n:0},sit:{n:0},push:{n:0}}, pts=0, guard=0;
+  while(remaining>0 && guard++<200){
+    work.sort((a,b)=>a.perPt-b.perPt);
+    const pick=work.find(w=>w.head>0);
+    if(!pick) break;
+    steps[pick.key].n+=pick.perPt; steps[pick.key].verb=pick.verb; steps[pick.key].unit=pick.unit; steps[pick.key].name=pick.name;
+    pick.head--; remaining--; pts++;
+  }
+  const arr=[];
+  for(const k of ['run','sit','push']){ if(steps[k].n>0) arr.push({txt:`${steps[k].verb}${steps[k].n}${steps[k].unit?' '+steps[k].unit.replace(' reps',' reps').replace(' s','s'):''} ${steps[k].name}`}); }
+  // cleaner text
+  const clean=[];
+  for(const k of ['run','sit','push']){ if(steps[k].n>0){ const u=k==='run'?'s':'reps'; const v=k==='run'?'Shave':`+`; clean.push({txt:`${v} ${steps[k].n}${u==='s'?'s':' reps'} ${steps[k].name}`}); } }
+  return {steps:clean, points:pts};
+}
+function trendBreakdown(prev,res){
+  const bits=[];
+  if(prev.runScore!==res.run.score) bits.push(`run ${res.run.score-prev.runScore>0?'+':''}${res.run.score-prev.runScore}`);
+  if(prev.sitScore!==res.sit.score) bits.push(`sit-ups ${res.sit.score-prev.sitScore>0?'+':''}${res.sit.score-prev.sitScore}`);
+  if(prev.pushScore!==res.push.score) bits.push(`push-ups ${res.pushScore-prev.pushScore>0?'+':''}${res.pushScore-prev.pushScore}`);
+  return bits.length? `(${bits.join(', ')})`:'';
+}
+function coaching(res, weak){
+  const out=[];
+  if(res.run.score<25){
+    const pace = res.run.score<15? 'Your run needs the most work. Add 2× weekly interval sessions (e.g. 400m × 8 at goal pace) plus one easy 3–5km.'
+      : res.run.score<25? 'Run is solid — a tempo run weekly can push you into the max band.' : '';
+    if(pace) out.push({ic:'info',e:'🏃',t:pace});
+  }
+  if(res.push.score<15) out.push({ic:'info',e:'💪',t:'Push-ups are low. Grease the groove daily (sets of 60% max, 5×/day) and add 3×/week push-up pyramids to build volume fast.'});
+  if(res.sit.score<15) out.push({ic:'info',e:'🧱',t:'Sit-ups lagging. 3×/week plank + sit-up supersets; pace the 1-min test — aim ~1 rep/sec.'});
+  if(res.total>=75 && res.total<85) out.push({ic:'warn',e:'★',t:`Silver locked in. Gold needs ${85-res.total} more pts — usually cheapest via the run (each 10s faster ≈ 1 pt in most bands).`});
+  return out;
+}
+
+/* ---- trend chart (SVG) ---- */
+function renderTrend(){
+  const box=$('trend');
+  if(attempts.length<2){ box.innerHTML=`<div class="empty">${attempts.length===0?'No attempts logged yet.':'Log one more attempt to see a trend.'}</div>`; return; }
+  const data=[...attempts].sort((a,b)=>a.date.localeCompare(b.date));
+  const W=520,H=90,pad=8;
+  const xs=data.map((_,i)=>pad+i*(W-2*pad)/(data.length-1));
+  const ys=data.map(d=>H-pad-(d.total/100)*(H-2*pad));
+  const pts=xs.map((x,i)=>`${x},${ys[i]}`).join(' ');
+  const dots=xs.map((x,i)=>`<circle cx="${x}" cy="${ys[i]}" r="3" fill="#2ea043"><title>${fmtDate(data[i].date)}: ${data[i].total} (${data[i].awardName})</title></circle>`).join('');
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="#2ea043" stroke-width="2"/>
+    ${dots}
+  </svg>`;
+}
+function renderHistory(){
+  const ul=$('hist');
+  if(!attempts.length){ ul.innerHTML='<li class="muted" style="border:none">No attempts yet. Log one to start tracking.</li>'; return; }
+  const sorted=[...attempts].sort((a,b)=>b.date.localeCompare(a.date));
+  ul.innerHTML=sorted.map((a,i)=>`<li>
+    <span class="date">${fmtDate(a.date)}</span>
+    <span class="split">${fmtTime(a.run)} · ${a.sit} sit · ${a.push} push</span>
+    <span class="sc">${a.total} <span class="muted" style="font-weight:400">${a.awardName}</span></span>
+    <button class="del" data-i="${attempts.indexOf(a)}" title="Delete">✕</button>
+  </li>`).join('');
+  ul.querySelectorAll('.del').forEach(b=>b.onclick=()=>{ attempts.splice(+b.dataset.i,1); save(); refresh(); toast('Attempt deleted','ok'); });
+}
+function fmtDate(d){ if(!d) return '—'; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y.slice(2)}`; }
+
+function refresh(){ renderHistory(); renderTrend(); recompute(); }
+
+/* ===================== EVENTS ===================== */
+['inRun','inSit','inPush'].forEach(id=>$(id).addEventListener('input',recompute));
+
+$('btnLog').onclick=()=>{
+  if(!lastResult){ toast('Enter all three results first','err'); return; }
+  if(!profile.age){ toast('Set your age in Profile first','err'); openModal('profileModal'); return; }
+  const inp=readInputs();
+  const today=new Date().toISOString().slice(0,10);
+  attempts.push({ date:today, run:inp.run, sit:inp.sit, push:inp.push, age:profile.age,
+    runScore:lastResult.run.score, sitScore:lastResult.sit.score, pushScore:lastResult.push.score,
+    total:lastResult.total, awardName:lastResult.award.name });
+  attempts.sort((a,b)=>a.date.localeCompare(b.date));
+  save(); refresh();
+  toast(`Logged! ${lastResult.total} pts — ${lastResult.award.name}`,'ok');
+  // clear draft
+  ['inRun','inSit','inPush'].forEach(id=>$(id).value='');
+  localStorage.removeItem(LS.draft);
+  recompute();
+};
+
+/* profile modal */
+function openModal(id){ $(id).classList.add('show'); }
+function closeModal(id){ $(id).classList.remove('show'); }
+window.closeModal=closeModal;
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show'); }));
+$('btnProfile').onclick=()=>{
+  $('pfName').value=profile.name||'';
+  $('pfAge').value=profile.age||'';
+  $('pfDate').value=profile.nextDate||'';
+  $('pfTarget').value=profile.target||'75';
+  openModal('profileModal');
+};
+$('pfSave').onclick=()=>{
+  profile.name=$('pfName').value.trim();
+  profile.age=parseInt($('pfAge').value,10)||profile.age;
+  profile.nextDate=$('pfDate').value||null;
+  profile.target=parseInt($('pfTarget').value,10)||75;
+  save(); closeModal('profileModal'); refresh(); toast('Profile saved','ok');
+};
+
+/* settings modal */
+$('btnSettings').onclick=()=>{
+  $('setOwner').value=settings.owner||'';
+  $('setRepo').value=settings.repo||'';
+  $('setBranch').value=settings.branch||'main';
+  $('setPath').value=settings.path||'history.json';
+  $('setToken').value=settings.token||'';
+  openModal('settingsModal');
+};
+$('setSave').onclick=()=>{
+  settings.owner=$('setOwner').value.trim();
+  settings.repo=$('setRepo').value.trim();
+  settings.branch=$('setBranch').value.trim()||'main';
+  settings.path=$('setPath').value.trim()||'history.json';
+  settings.token=$('setToken').value.trim();
+  localStorage.setItem(LS.settings,JSON.stringify(settings));
+  closeModal('settingsModal'); toast('GitHub settings saved','ok');
+};
+
+/* ===================== GITHUB SYNC ===================== */
+function ghBase(){ return `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${encodeURIComponent(settings.path)}`; }
+function ghHeaders(){ return {Authorization:'token '+settings.token, Accept:'application/vnd.github+json'}; }
+function payload(){
+  return JSON.stringify({ profile, attempts, exportedAt: new Date().toISOString() }, null, 2);
+}
+async function getFileSha(){
+  const r=await fetch(ghBase()+'?ref='+encodeURIComponent(settings.branch),{headers:ghHeaders()});
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error('GitHub fetch failed: '+r.status);
+  const j=await r.json(); return j.sha;
+}
+async function syncToGitHub(){
+  if(!settings.owner||!settings.repo||!settings.token){ toast('Add owner, repo & token in GitHub settings','err'); openModal('settingsModal'); return; }
+  try{
+    const btn=$('btnSync'); btn.disabled=true; btn.textContent='Syncing…';
+    const sha=await getFileSha();
+    const body={ message:'ippt-tracker: update history', content:btoa(unescape(encodeURIComponent(payload()))), branch:settings.branch };
+    if(sha) body.sha=sha;
+    const r=await fetch(ghBase(),{method:'PUT',headers:ghHeaders(),body:JSON.stringify(body)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.message||('HTTP '+r.status)); }
+    btn.textContent='⬆ Sync to GitHub'; btn.disabled=false;
+    toast('Synced to GitHub ✓','ok');
+  }catch(e){ $('btnSync').disabled=false; $('btnSync').textContent='⬆ Sync to GitHub'; toast('Sync failed: '+e.message,'err'); }
+}
+$('btnSync').onclick=syncToGitHub;
+$('setLoad').onclick=async()=>{
+  if(!settings.owner||!settings.repo||!settings.token){ toast('Add owner, repo & token first','err'); return; }
+  try{
+    const r=await fetch(ghBase()+'?ref='+encodeURIComponent(settings.branch||'main'),{headers:ghHeaders()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); const txt=decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))));
+    const data=JSON.parse(txt);
+    if(Array.isArray(data.attempts)) attempts=data.attempts;
+    if(data.profile) profile={...profile,...data.profile};
+    save(); closeModal('settingsModal'); refresh(); toast('Loaded from GitHub ✓','ok');
+  }catch(e){ toast('Load failed: '+e.message,'err'); }
+};
+
+/* ===================== INIT ===================== */
+(function init(){
+  // restore draft inputs
+  const d=JSON.parse(localStorage.getItem(LS.draft)||'null');
+  if(d){ if(d.run!=null)$('inRun').value=fmtTime(d.run); if(d.sit!=null)$('inSit').value=d.sit; if(d.push!=null)$('inPush').value=d.push; }
+  // first run: seed example so the dashboard isn't empty (only if no history)
+  if(!attempts.length && !profile.age){
+    profile.age=27; profile.target=75; save();
+    $('inRun').value='11:20'; $('inSit').value='45'; $('inPush').value='40';
+  }
+  refresh();
+})();
+</script>
+</body>
+</html>
