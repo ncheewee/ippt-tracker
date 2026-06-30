@@ -1,4 +1,4 @@
-const CACHE = 'ippt-tracker-v3';
+const CACHE = 'ippt-tracker-v4';
 const ASSETS = [
   './',
   './index.html',
